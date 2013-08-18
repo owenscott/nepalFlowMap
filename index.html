@@ -246,7 +246,7 @@
                 .enter().append('path')
                 .attr('class',function(d) { return d.properties.class;})
                 .attr('d',path)
-                .attr('stroke-width',function(d) { console.log(Math.max(d.properties.volume / 104665191)); if (d.properties.type == 'route') return Math.max(((d.properties.volume / 104665191) * 3),0.2); return 0;})
+                .attr('stroke-width',function(d) {  if (d.properties.type == 'route') return Math.max(((d.properties.volume / 104665191) * 3),0.2); return 0;})
                 
                 /*
                 svg.insert("path", ".graticule")
@@ -271,7 +271,7 @@
                     .attr("transform", function(d) { return "translate(" + projection(d.value) + ")"; })
                     
                 point.append('circle')
-                    .attr('r',function(d) {r = (volumes[d.key].volume / volumes['Nepal'].volume) * 10 ;if (r<0.2) return 0.2; return r; })
+                    .attr('r',function(d) {console.log(Math.max(Math.sqrt((volumes[d.key].volume / volumes['Nepal'].volume)) * 10,0.2)); return Math.max(  	Math.sqrt((volumes[d.key].volume / volumes['Nepal'].volume)) * 10,0.2)})
                     .attr('class', function(d) {return volumes[d.key].type})
                     
                 
