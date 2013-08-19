@@ -33,8 +33,7 @@ d3.selection.prototype.moveToFront = function() {
   });
 };
 
-//geo zoom 
-
+//helper functions for geo zoom and pan
 var λ = d3.scale.linear()
     .domain([0, width])
     .range([-180, 180]);
@@ -43,20 +42,7 @@ var φ = d3.scale.linear()
     .domain([0, height])
     .range([90, -90]);
 
-
-function rotate(deg) {
-    if (! Number(deg)  ) deg = 0;
-    projection.rotate([projection.rotate()[0]+Number(deg),0])
-    svg.selectAll('.land')
-        .attr('d',path)
-    svg.selectAll('.flow')
-        .attr('d',path) 
-    svg.selectAll('.points')
-        .attr('transform', function(d) {return 'translate(' + projection(d.coordinates) + ')';})
-    console.log(projection.rotate());
-}
-
-
+//helper function for geo zoom and pan
 function reDraw() {
     svg.selectAll('.land')
         .attr('d',path)
@@ -68,9 +54,8 @@ function reDraw() {
         .attr('d',path)
 }
 
+//behavious function for zoom
 var zoom = d3.behavior.zoom()
-    //.x(λ)
-    //.y(φ)
     .scaleExtent([170,1000])
     .on("zoom",function() {
         var t = d3.event.translate;
@@ -84,8 +69,7 @@ var zoom = d3.behavior.zoom()
 
 
 
-//main (first run only)
-
+//main function to load initial data and draw world map
 d3.csv('data.csv', function(err,data) {
     
     //coerce amount to number type
@@ -101,7 +85,6 @@ d3.csv('data.csv', function(err,data) {
     byDonor = flows.dimension(function(d) {return d.donor});
     
     //create donor checkbox list
-    
     var donorMenu = d3.select('#menuContainer').append('div')
         .attr('class','menu')
     
@@ -122,7 +105,7 @@ d3.csv('data.csv', function(err,data) {
     
     //add world map and flows
     d3.json("world-110.json", function(error, world) {
-        
+
         //world map
         var worldMap = [topojson.feature(world,world.objects.land)];
         svg.selectAll('path')
@@ -130,7 +113,8 @@ d3.csv('data.csv', function(err,data) {
             .enter().append('path')
             .attr('class','land')
             .attr('d', path)
-        
+
+        //grid
         svg.append("path")
             .datum(graticule)
             .attr("class", "graticule")
@@ -138,26 +122,26 @@ d3.csv('data.csv', function(err,data) {
         
         //update map with flow data
         updateMap();
+
         //establish zoom behaviour
         svg.call(zoom);
+
     });
 });
 
-
-
-
-
-//called from first run and DOM event on checkbox click
+//called from d3.csv callback and DOM event on checkbox click
 var updateMap = function() {
     
     var paths = [];
     var points = [];
-    var selectedDonors = getSelectedDonors(); //['Government of Finland']//getSelectedDonors();
     
-    //filter for selected donors only
+    //get selected donors from DOM 
+    var selectedDonors = getSelectedDonors(); 
+    
+    //filter dimension based on selected donors
     byDonor.filter(function(d) {return isInArray(d,selectedDonors.slice())}); 
     
-    //inflows
+    //calculate inflows from dimensions (inflows are all assumed to go to Nepal from donor headquarters)
     var inFlows = byDonor.group().reduceSum(function(d) { return d.amount;}).all().slice();
     var i = 0;
     while (true) {
@@ -168,7 +152,8 @@ var updateMap = function() {
         }
         if (i == inFlows.length) break;
     }
-    //outflows
+    
+    //calculate outflows from dimension (outflows are all assumed to go from Nepal to recipient country)
     var outFlows = byCountry.group().reduceSum(function(d) {return d.amount;}).all().slice();
     var i = 0;
     while (true) {
@@ -179,7 +164,8 @@ var updateMap = function() {
         }
         if (i == outFlows.length) break;
     }
-    //make into paths
+    
+    //make flows into paths and points
     for (i in inFlows) {
         paths.push(makePath(places[inFlows[i].key],places.Nepal,'provider',inFlows[i].value))
         points.push(makePoint(inFlows[i].key,places[inFlows[i].key],'provider',inFlows[i].value))
@@ -188,13 +174,11 @@ var updateMap = function() {
         if (outFlows[i].key != "Nepal") paths.push(makePath(places.Nepal,places[outFlows[i].key],'receiver',outFlows[i].value));
         points.push(makePoint(outFlows[i].key,places[outFlows[i].key],'receiver',outFlows[i].value));
     }
+    
+    //update svg based on flows
     updateSvg(paths.slice(),points.slice());
 
-   
 }
-
-
-
 
 
 //handles enter, exit, and update for the paths and points on the svg (called from updateMap())
@@ -230,32 +214,23 @@ var updateSvg = function(paths,points) {
  
     
     //===============Points===================
-    console.log(points.map(function(p) {return p.volume}))
     var maxSpend = Math.max.apply(Math, points.map(function(p) {return p.volume}));
-    console.log("Maxspend = " + maxSpend);
     var maxRadius = 10;
     var minRadius = 1;
         
     var spend = svg.selectAll('.points')
         .data(points, function(d) {return d.name})
     
-    console.log(points);
-    
     //update
     spend.select('circle').transition(750)
         .attr('r',function(d) {return normalize(d.volume,maxSpend,maxRadius,minRadius)});
     
-    
-    
     spend.moveToFront();
     
     //enter
-
-    
     var spendEnter = spend.enter().append('g')
         .attr('class','points')
         .attr('transform', function(d) {return 'translate(' + projection(d.coordinates) + ')';})
-
     
     spendEnter.append('circle')
         .attr('class', function(d) {return d.class})
@@ -267,8 +242,6 @@ var updateSvg = function(paths,points) {
         .transition(750)
         .attr('stroke-width',1)
         .style('fill-opacity',1)
-
-
 
     spendEnter.append('text')
         .attr('dy','.71em')
@@ -293,7 +266,8 @@ var updateSvg = function(paths,points) {
 
 
 //UTILITIES
-                    
+
+//makes JSON for a flow (path)
 var makePath = function(start,finish,type,volume) {
     return {
         type:'LineString',
@@ -306,6 +280,7 @@ var makePath = function(start,finish,type,volume) {
     }
 }
 
+//makes JSON for a point
 var makePoint = function(name,coordinates,type,volume) {
     return {
         name:name,
@@ -315,10 +290,12 @@ var makePoint = function(name,coordinates,type,volume) {
     }
 }
 
+//checks if a value is in an array
 var isInArray = function(value, array) {
   return array.indexOf(value) > -1 ? true : false;
 }
 
+//gets list of selected donors from DOM
 var getSelectedDonors = function() {
     var checkboxes = d3.selectAll('.donorCheck')[0];
     var result = [];
@@ -328,11 +305,12 @@ var getSelectedDonors = function() {
     return result;
 }
 
+//normalizes a flow/point value based on the max value and return range (stroke-width or r)
 var normalize = function(value,maxValue,maxReturn,minReturn) {
     return (value/maxValue) * (maxReturn-minReturn) + minReturn;
 }
 
-
+//specific x transforms to make labels look nice
 var transformLabelX = function(d) {
     switch(d.name) {
         case 'Canada':return -10; break;
@@ -351,6 +329,7 @@ var transformLabelX = function(d) {
         
 }
 
+//specific x transforms to make labels look nice
 var transformLabelY = function(d) {
     switch(d.name) {
         case 'Canada':return 10; break;
