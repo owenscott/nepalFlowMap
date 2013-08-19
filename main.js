@@ -111,15 +111,16 @@ var updateMap = function() {
         }
         if (i == outFlows.length) break;
     }
-    
     //make into paths
     for (i in inFlows) {
         paths.push(makePath(places[inFlows[i].key],places.Nepal,'provider',inFlows[i].value))
     }
     for (i in outFlows) {
-        if(!outFlows[i].key == 'Nepal') paths.push(makePath(places.Nepal,places[outFlows[i].key],'receiver',outFlows[i].value));
+        if (outFlows[i].key != "Nepal") paths.push(makePath(places.Nepal,places[outFlows[i].key],'receiver',outFlows[i].value));
     }
-    
+    console.log(inFlows);
+    console.log(outFlows);
+    console.log(paths);    
     
     updateSvg(paths);
 
