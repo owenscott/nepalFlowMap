@@ -1,9 +1,14 @@
+
+console.log(window.screen.availHeight)
+console.log(window.screen.availWidth)
+
 //define SVG width
 var width = 1000, height = 570;
 
 //crossfilter globals
 var flows;
 var byCountry, byDonor, byProject;
+
 
 //d3 globals
 var projection = d3.geo.kavrayskiy7()
@@ -27,6 +32,57 @@ d3.selection.prototype.moveToFront = function() {
     this.parentNode.appendChild(this);
   });
 };
+
+//geo zoom 
+
+var λ = d3.scale.linear()
+    .domain([0, width])
+    .range([-180, 180]);
+
+var φ = d3.scale.linear()
+    .domain([0, height])
+    .range([90, -90]);
+
+
+function rotate(deg) {
+    if (! Number(deg)  ) deg = 0;
+    projection.rotate([projection.rotate()[0]+Number(deg),0])
+    svg.selectAll('.land')
+        .attr('d',path)
+    svg.selectAll('.flow')
+        .attr('d',path) 
+    svg.selectAll('.points')
+        .attr('transform', function(d) {return 'translate(' + projection(d.coordinates) + ')';})
+    console.log(projection.rotate());
+}
+
+
+function reDraw() {
+    svg.selectAll('.land')
+        .attr('d',path)
+    svg.selectAll('.flow')
+        .attr('d',path) 
+    svg.selectAll('.points')
+        .attr('transform', function(d) {return 'translate(' + projection(d.coordinates) + ')';})
+    svg.selectAll('.graticule')
+        .attr('d',path)
+}
+
+var zoom = d3.behavior.zoom()
+    //.x(λ)
+    //.y(φ)
+    .scaleExtent([170,1000])
+    .on("zoom",function() {
+        var t = d3.event.translate;
+        projection
+            .rotate([λ(t[0]),0])
+            //.scale(d3.event.scale);
+        console.log(λ(t[0]));
+        console.log(φ(t[1]))
+        reDraw();
+    });
+
+
 
 //main (first run only)
 
@@ -65,7 +121,7 @@ d3.csv('data.csv', function(err,data) {
     }
     
     //add world map and flows
-    d3.json("world-50.json", function(error, world) {
+    d3.json("world-110.json", function(error, world) {
         
         //world map
         var worldMap = [topojson.feature(world,world.objects.land)];
@@ -82,7 +138,8 @@ d3.csv('data.csv', function(err,data) {
         
         //update map with flow data
         updateMap();
-        
+        //establish zoom behaviour
+        svg.call(zoom);
     });
 });
 
