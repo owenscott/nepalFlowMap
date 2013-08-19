@@ -1,7 +1,4 @@
 
-console.log(window.screen.availHeight)
-console.log(window.screen.availWidth)
-
 //define SVG width
 var width = 1000, height = 570;
 
