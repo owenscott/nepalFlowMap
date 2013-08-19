@@ -185,23 +185,22 @@ var updateSvg = function(paths,points) {
     console.log(points);
     
     //update
-    spend.selectAll('circle').transition(750)
-        .attr('r',function(d) {if (d.volume > maxSpend) {console.log('Update Max found'); console.log(d.volume)};
-                               return normalize(d.volume,maxSpend,maxRadius,minRadius)
-                              
-                              })
+    spend.select('circle').transition(750)
+        .attr('r',function(d) {return normalize(d.volume,maxSpend,maxRadius,minRadius)});
+    
+    
     
     spend.moveToFront();
     
     //enter
-    var spendEnter = spend.enter()
+
     
-    var spendEnterG = spendEnter.append('g')
+    var spendEnter = spend.enter().append('g')
         .attr('class','points')
         .attr('transform', function(d) {return 'translate(' + projection(d.coordinates) + ')';})
 
     
-    spendEnterG.append('circle')
+    spendEnter.append('circle')
         .attr('class', function(d) {return d.class})
         .attr('r',function(d) {
             if (d.volume > maxSpend) {console.log('Max found'); console.log(d.volume)};
@@ -214,7 +213,7 @@ var updateSvg = function(paths,points) {
 
 
 
-    spendEnterG.append('text')
+    spendEnter.append('text')
         .attr('dy','.71em')
         .text(function(d) {return d.name})
         .attr('x',transformLabelX)
