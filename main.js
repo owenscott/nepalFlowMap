@@ -57,7 +57,7 @@ var zoom = d3.behavior.zoom()
     .on("zoom",function() {
         var t = d3.event.translate;
         projection
-            .rotate([λ(t[0]),0])
+            .rotate([λ(t[0]),φ(t[1])])
             //.scale(d3.event.scale);
         console.log(λ(t[0]));
         console.log(φ(t[1]))
