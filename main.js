@@ -6,7 +6,7 @@ var flows;
 var byCountry, byDonor, byProject;
 
 //d3 globals
-var projection = d3.geo.equirectangular()
+var projection = d3.geo.kavrayskiy7()
     .scale(170)
     .rotate([-84,0])
     .translate([width / 2 , height / 2])
@@ -14,12 +14,19 @@ var projection = d3.geo.equirectangular()
 
 var path = d3.geo.path().projection(projection);
 
-var svg = d3.select('body').append('svg')
+var svg = d3.select('#mapContainer').append('svg')
     .attr('width','100%')
     .attr('max-width',width)
     
     .attr('height',height)
 
+var graticule = d3.geo.graticule();
+
+d3.selection.prototype.moveToFront = function() {
+    return this.each(function(){
+    this.parentNode.appendChild(this);
+  });
+};
 
 //main (first run only)
 
@@ -39,7 +46,7 @@ d3.csv('data.csv', function(err,data) {
     
     //create donor checkbox list
     
-    var donorMenu = d3.select('body').append('div')
+    var donorMenu = d3.select('#menuContainer').append('div')
         .attr('class','menu')
     
     for (d in donors =byDonor.group().reduceSum(function(d) {return d.amount}).all()) {
@@ -68,6 +75,11 @@ d3.csv('data.csv', function(err,data) {
             .attr('class','land')
             .attr('d', path)
         
+        svg.append("path")
+            .datum(graticule)
+            .attr("class", "graticule")
+            .attr("d", path);
+        
         //update map with flow data
         updateMap();
         
@@ -85,7 +97,6 @@ var updateMap = function() {
     var points = [];
     var selectedDonors = getSelectedDonors(); //['Government of Finland']//getSelectedDonors();
     
-    console.log(selectedDonors);
     //filter for selected donors only
     byDonor.filter(function(d) {return isInArray(d,selectedDonors.slice())}); 
     
@@ -114,41 +125,15 @@ var updateMap = function() {
     //make into paths
     for (i in inFlows) {
         paths.push(makePath(places[inFlows[i].key],places.Nepal,'provider',inFlows[i].value))
+        points.push(makePoint(inFlows[i].key,places[inFlows[i].key],'provider',inFlows[i].value))
     }
     for (i in outFlows) {
         if (outFlows[i].key != "Nepal") paths.push(makePath(places.Nepal,places[outFlows[i].key],'receiver',outFlows[i].value));
+        points.push(makePoint(outFlows[i].key,places[outFlows[i].key],'receiver',outFlows[i].value));
     }
-    console.log(inFlows);
-    console.log(outFlows);
-    console.log(paths);    
-    
-    updateSvg(paths);
+    updateSvg(paths.slice(),points.slice());
 
-    /*var point = svg.append('g')
-        .attr('class','points')
-        .selectAll('g')
-        .data(d3.entries(places))
-        .enter().append('g')
-        .attr("transform", function(d) { return "translate(" + projection(d.value) + ")"; })
-        
-    point.append('circle')
-        .attr('r',function(d) {r = (volumes[d.key].volume / volumes['Nepal'].volume) * 10 ;if (r<0.2) return 0.2; return r; })
-        .attr('class', function(d) {return volumes[d.key].type})
-        
-    
-    point.append('text')
-        .attr('y',0)
-        .attr('x',function(d) {
-
-        })
-        .attr('y',function(d) {
-
-        })
-        .attr('dy','.71em')
-        .text(function(d) {return d.key})
-
-*/
-
+   
 }
 
 
@@ -158,7 +143,7 @@ var updateMap = function() {
 //handles enter, exit, and update for the paths and points on the svg (called from updateMap())
 var updateSvg = function(paths,points) {
     
-    //get largest flow (for normalizing)
+    //=============FLOWS==================
     var maxFlow = Math.max.apply(Math,paths.map(function(p) {return p.properties.volume}));
     var maxStrokeWidth = 3;
     var minStrokeWidth = .4;
@@ -169,7 +154,6 @@ var updateSvg = function(paths,points) {
     //update
     flows.transition(750)
         .attr('stroke-width', function(d) {return normalize(d.properties.volume,maxFlow,maxStrokeWidth,minStrokeWidth)})
-    
     
     //enter                
     flows.enter().append('path')
@@ -186,6 +170,68 @@ var updateSvg = function(paths,points) {
         .transition(750)
         .attr('stroke-width',0)
         .remove();
+ 
+    
+    //===============Points===================
+    console.log(points.map(function(p) {return p.volume}))
+    var maxSpend = Math.max.apply(Math, points.map(function(p) {return p.volume}));
+    console.log("Maxspend = " + maxSpend);
+    var maxRadius = 10;
+    var minRadius = 1;
+        
+    var spend = svg.selectAll('.points')
+        .data(points, function(d) {return d.name})
+    
+    console.log(points);
+    
+    //update
+    spend.selectAll('circle').transition(750)
+        .attr('r',function(d) {if (d.volume > maxSpend) {console.log('Update Max found'); console.log(d.volume)};
+                               return normalize(d.volume,maxSpend,maxRadius,minRadius)
+                              
+                              })
+    
+    spend.moveToFront();
+    
+    //enter
+    var spendEnter = spend.enter()
+    
+    var spendEnterG = spendEnter.append('g')
+        .attr('class','points')
+        .attr('transform', function(d) {return 'translate(' + projection(d.coordinates) + ')';})
+
+    
+    spendEnterG.append('circle')
+        .attr('class', function(d) {return d.class})
+        .attr('r',function(d) {
+            if (d.volume > maxSpend) {console.log('Max found'); console.log(d.volume)};
+            return normalize(d.volume,maxSpend,maxRadius,minRadius)})
+        .attr('stroke-width',0)
+        .style('fill-opacity',0)
+        .transition(750)
+        .attr('stroke-width',1)
+        .style('fill-opacity',1)
+
+
+
+    spendEnterG.append('text')
+        .attr('dy','.71em')
+        .text(function(d) {return d.name})
+        .attr('x',transformLabelX)
+        .attr('y',transformLabelY)
+        .style('fill-opacity',0)
+        .transition(750)
+        .style('fill-opacity',1)
+    
+    //exit
+    var spendExit = spend.exit()
+    
+    spendExit.transition(750).remove()
+    spendExit.selectAll('circle').transition(750)
+        .attr('stroke-width',0)
+        .style('fill-opacity',0)
+    spendExit.selectAll('text').transition(750)
+        .style('fill-opacity',0)
     
 }
 
@@ -204,9 +250,9 @@ var makePath = function(start,finish,type,volume) {
     }
 }
 
-var makePlace = function(name,coordinates,type,volume) {
+var makePoint = function(name,coordinates,type,volume) {
     return {
-        name:Name,
+        name:name,
         coordinates:coordinates,
         class:type,
         volume:volume
@@ -232,7 +278,7 @@ var normalize = function(value,maxValue,maxReturn,minReturn) {
 
 
 var transformLabelX = function(d) {
-    switch(d.key) {
+    switch(d.name) {
         case 'Canada':return -10; break;
         case 'China':return -10; break;
         case 'Finland':return 25; break;
@@ -242,7 +288,7 @@ var transformLabelX = function(d) {
         case 'Vietnam':return -20; break;
         case 'Asian Development Bank':return 65; break;
         case 'Government of Finland':return 55; break;
-        case 'Swiss Agency for Development and Cooperation':return -10; break;
+        case 'Swiss Agency for Cooperation and Development':return -10; break;
         case 'World Bank':return 35; break;
     }
     return 0;
@@ -250,7 +296,7 @@ var transformLabelX = function(d) {
 }
 
 var transformLabelY = function(d) {
-    switch(d.key) {
+    switch(d.name) {
         case 'Canada':return 10; break;
         case 'China':return 7; break;
         case 'Finland':return -10; break;
@@ -260,7 +306,7 @@ var transformLabelY = function(d) {
         case 'Vietnam':return 5; break;
         case 'Asian Development Bank':return 0; break;
         case 'Government of Finland':return 5; break;
-        case 'Swiss Agency for Development and Cooperation':return 10; break;
+        case 'Swiss Agency for Cooperation and Development':return 10; break;
         case 'World Bank':return 0; break;
     }
     return 0;

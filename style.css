@@ -2,6 +2,27 @@
 body {
   background: #fcfcfa;
 }
+
+
+.container {
+    max-width:1300px;
+    width:100%;
+    margin:auto;
+}
+
+.main {
+    max-width:1000px;
+    width:100%;
+    display:inline-block;
+    float:left;
+    margin:auto;
+}
+
+.secondary {
+    max-width:300px;
+    float:right;
+    margin:auto;
+}
  
 .stroke {
   fill: none;
@@ -45,11 +66,10 @@ body {
  
 .points circle {
   fill: #fff;
-  stroke-width: 1px;
 }
 
 .provider {
-    stroke:blue;
+    stroke:#6b6bff;
     fill:none;
 }
 
