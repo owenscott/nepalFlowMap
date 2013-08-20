@@ -1,3 +1,7 @@
+//tooltip
+var tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 1e-6);
 
 //define SVG width
 var width = 1000, height = 570;
@@ -59,8 +63,6 @@ var zoom = d3.behavior.zoom()
         projection
             .rotate([λ(t[0]),0])
             //.scale(d3.event.scale);
-        console.log(λ(t[0]));
-        console.log(φ(t[1]))
         reDraw();
     });
 
@@ -116,6 +118,8 @@ d3.csv('data.csv', function(err,data) {
             .datum(graticule)
             .attr("class", "graticule")
             .attr("d", path);
+        
+
         
         //update map with flow data
         updateMap();
@@ -231,6 +235,8 @@ var updateSvg = function(paths,points) {
     
     spendEnter.append('circle')
         .attr('class', function(d) {return d.class})
+        .on('mouseover',pointMouseover)
+        .on('mouseout',pointMouseOut)
         .attr('r',function(d) {
             if (d.volume > maxSpend) {console.log('Max found'); console.log(d.volume)};
             return normalize(d.volume,maxSpend,maxRadius,minRadius)})
@@ -239,6 +245,7 @@ var updateSvg = function(paths,points) {
         .transition(750)
         .attr('stroke-width',1)
         .style('fill-opacity',1)
+        
 
     spendEnter.append('text')
         .attr('dy','.71em')
@@ -342,4 +349,32 @@ var transformLabelY = function(d) {
         case 'World Bank':return 0; break;
     }
     return 0;
+}
+
+var pointMouseover = function(d) {
+    tooltip
+        .style("left", (d3.event.pageX +5) + "px")
+      .style("top", (d3.event.pageY + 5) + "px")
+      .transition(500)
+      .style('opacity', 1)
+      .text('USD $' + addCommas(String(d.volume).split('.')[0]))
+
+}
+
+var pointMouseOut = function() {
+    tooltip.transition(200)
+    .style('opacity',0);
+}
+
+function addCommas(nStr)
+{
+	nStr += '';
+	x = nStr.split('.');
+	x1 = x[0];
+	x2 = x.length > 1 ? '.' + x[1] : '';
+	var rgx = /(\d+)(\d{3})/;
+	while (rgx.test(x1)) {
+		x1 = x1.replace(rgx, '$1' + ',' + '$2');
+	}
+	return x1 + x2;
 }
